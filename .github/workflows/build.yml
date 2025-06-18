@@ -103,7 +103,6 @@ jobs:
   release:
     name: Create Release
     needs: build
-    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-22.04
     steps:
       - name: Download all artifacts
@@ -132,7 +131,7 @@ jobs:
         with:
           file_glob: true
           file: artifacts/linux-x64.zip
-          release_name: KoboldCPP-${{ inputs.version }}
+          release_name: ${{ inputs.version }}
           tag: ${{ inputs.version }}
           make_latest: true
           prerelease: true
