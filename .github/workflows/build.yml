@@ -1,20 +1,10 @@
 name: Flutter CI
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version tag of desktop_adb_file_browser to build: v1.4.3'
-        default: v1.4.3
-        required: false
-        type: string
-  workflow_call:
-    inputs:
-      version:
-        description: 'Version tag of desktop_adb_file_browser to build: v1.4.3'
-        default: v1.4.3
-        required: false
-        type: string
+  push:
+  #  branches: [ master ]
+  pull_request:
+  #  branches: [ master ]
 
 jobs:
   build:
@@ -22,12 +12,32 @@ jobs:
 
     strategy:
       matrix:
-        target: [linux-x64]
+        target: [macos-arm64, windows-x64, linux-24.04-x64, linux-22.04-x64]
         include:
-        - target: linux-x64
+        # - target: macos-arm64
+        #   os: macos
+        #   arch: arm64
+        #   runner: macOS-latest
+
+        - target: macos-arm64
+          os: macos
+          arch: arm64
+          runner: macOS-latest
+
+        - target: windows-x64
+          os: windows
+          arch: x64
+          runner: windows-latest
+
+        - target: linux-22.04-x64
           os: linux
           arch: x64
           runner: ubuntu-22.04
+
+        - target: linux-24.04-x64
+          os: linux
+          arch: x64
+          runner: ubuntu-latest
 
 
     steps:
@@ -51,6 +61,9 @@ jobs:
     - run: flutter pub get
     - run: flutter build ${{matrix.os}}
       
+    # - name: Create MSIX installer
+    #   if: contains(matrix.runner, 'windows')
+    #   run: flutter pub run msix:create
 
     - name: Make MSIX Installer
       if: contains(matrix.runner, 'windows')
@@ -80,6 +93,53 @@ jobs:
       if: contains(matrix.runner, 'windows')
       run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /f innosetup.iss'
 
+    - name: Create MacOS App bundle
+      if: contains(matrix.runner, 'macos')
+      run: |
+        cd ./build/macos/Build/Products/Release/
+        ditto -c -k --sequesterRsrc --keepParent "./Desktop ADB File Browser.app" result.zip || true
+
+    # - name: Create Snap installer
+    #   if: contains(matrix.runner, 'ubuntu')
+    #   run: snapcraft
+      
+      # TODO: Mac artifacts
+      # TODO: Figure out how to fix Snap builds
+
+  # Windows
+
+    - name: Upload Windows artifacts (archive)
+      if: contains(matrix.runner, 'windows')
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.target }}
+        path: ./build/windows/x64/runner/Release/*
+        if-no-files-found: error
+        
+    - name: Upload Windows installer (MSIX)
+      if: contains(matrix.runner, 'windows')
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.target }}-msix
+        path: ./build/windows/x64/runner/Release/desktop_adb_file_browser.msix
+        if-no-files-found: error
+
+    # - name: Upload Windows MSIX installer
+    #   if: contains(matrix.runner, 'windows')
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: ${{ matrix.target }} msix installer
+    #     path: |
+    #       ./build/windows/runner/Release/*.msix
+    #     if-no-files-found: error
+    - name: Upload Windows Inno installer
+      if: contains(matrix.runner, 'windows')
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.target }} Inno installer
+        path: |
+          ./build/windows/x64/runner/windows_installer.exe
+        if-no-files-found: error
 
       # Linux
     - name: Upload Linux artifacts (archive)
@@ -98,41 +158,46 @@ jobs:
     #     path: ./*.snap
     #     if-no-files-found: error
 
+    # MacOS
+    - name: Upload MacOS artifacts (archive)
+      if: contains(matrix.runner, 'mac')
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.target }}
+        path: ./build/macos/Build/Products/Release/result.zip
+        if-no-files-found: error
 
 
   release:
     name: Create Release
     needs: build
-    runs-on: ubuntu-22.04
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      - name: List downloaded artifacts
-        run: |
-          ls artifacts 
-          ls -R artifacts
+      - name: Display structure of downloaded files
+        run: ls -R artifacts
 
-      - name: Linux artifacts
-        run: ls artifacts/linux-x64
-
-
-      - name: Zip and rename artifacts
+      - name: Zip platform-specific bundles
         run: |
           cd artifacts/
-          zip -r ./linux-x64.zip ./linux-x64
+          zip -r ./linux-22.04-x64.zip ./linux-22.04-x64
+          zip -r ./linux-24.04-x64.zip ./linux-24.04-x64
+          zip -r ./windows-x64.zip ./windows-x64
+          mv macos-arm64/result.zip ./macos-arm64.zip
 
-      - name: Upload files to a GitHub release
-        id: upload-release
-        uses: svenstaro/upload-release-action@2.9.0
-        continue-on-error: true
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
         with:
-          file_glob: true
-          file: artifacts/linux-x64.zip
-          release_name: ${{ inputs.version }}
-          tag: ${{ inputs.version }}
-          make_latest: true
-          prerelease: true
-          overwrite: false
+          files: |
+            artifacts/windows-x64-msix/desktop_adb_file_browser.msix
+            artifacts/windows-x64 Inno installer/windows_installer.exe
+            artifacts/windows-x64.zip
+            artifacts/linux-22.04-x64.zip
+            artifacts/linux-24.04-x64.zip
+            artifacts/macos-arm64.zip
+          fail_on_unmatched_files: true
