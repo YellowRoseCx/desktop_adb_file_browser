@@ -12,27 +12,28 @@ jobs:
 
     strategy:
       matrix:
-        target: [macos-arm64, windows-x64, linux-x64]
+        # target: [macos-arm64, windows-x64, linux-x64]
+        target: [linux-x64]
         include:
         # - target: macos-arm64
         #   os: macos
         #   arch: arm64
         #   runner: macOS-latest
 
-        - target: macos-arm64
-          os: macos
-          arch: arm64
-          runner: macOS-latest
+        # - target: macos-arm64
+        #   os: macos
+        #   arch: arm64
+        #   runner: macOS-latest
 
-        - target: windows-x64
-          os: windows
-          arch: x64
-          runner: windows-latest
+        # - target: windows-x64
+        #   os: windows
+        #   arch: x64
+        #   runner: windows-latest
 
         - target: linux-x64
           os: linux
           arch: x64
-          runner: ubuntu-latest
+          runner: ubuntu-22.04
 
 
     steps:
@@ -88,36 +89,36 @@ jobs:
       if: contains(matrix.runner, 'windows')
       run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /f innosetup.iss'
 
-    - name: Create MacOS App bundle
-      if: contains(matrix.runner, 'macos')
-      run: |
-        cd ./build/macos/Build/Products/Release/
-        ditto -c -k --sequesterRsrc --keepParent "./Desktop ADB File Browser.app" result.zip || true
+  #   - name: Create MacOS App bundle
+  #     if: contains(matrix.runner, 'macos')
+  #     run: |
+  #       cd ./build/macos/Build/Products/Release/
+  #       ditto -c -k --sequesterRsrc --keepParent "./Desktop ADB File Browser.app" result.zip || true
 
-    # - name: Create Snap installer
-    #   if: contains(matrix.runner, 'ubuntu')
-    #   run: snapcraft
+  #   # - name: Create Snap installer
+  #   #   if: contains(matrix.runner, 'ubuntu')
+  #   #   run: snapcraft
       
-      # TODO: Mac artifacts
-      # TODO: Figure out how to fix Snap builds
+  #     # TODO: Mac artifacts
+  #     # TODO: Figure out how to fix Snap builds
 
-  # Windows
+  # # Windows
 
-    - name: Upload Windows artifacts (archive)
-      if: contains(matrix.runner, 'windows')
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ matrix.target }}
-        path: ./build/windows/x64/runner/Release/*
-        if-no-files-found: error
+  #   - name: Upload Windows artifacts (archive)
+  #     if: contains(matrix.runner, 'windows')
+  #     uses: actions/upload-artifact@v4
+  #     with:
+  #       name: ${{ matrix.target }}
+  #       path: ./build/windows/x64/runner/Release/*
+  #       if-no-files-found: error
         
-    - name: Upload Windows installer (MSIX)
-      if: contains(matrix.runner, 'windows')
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ matrix.target }}-msix
-        path: ./build/windows/x64/runner/Release/desktop_adb_file_browser.msix
-        if-no-files-found: error
+  #   - name: Upload Windows installer (MSIX)
+  #     if: contains(matrix.runner, 'windows')
+  #     uses: actions/upload-artifact@v4
+  #     with:
+  #       name: ${{ matrix.target }}-msix
+  #       path: ./build/windows/x64/runner/Release/desktop_adb_file_browser.msix
+  #       if-no-files-found: error
 
     # - name: Upload Windows MSIX installer
     #   if: contains(matrix.runner, 'windows')
@@ -127,14 +128,14 @@ jobs:
     #     path: |
     #       ./build/windows/runner/Release/*.msix
     #     if-no-files-found: error
-    - name: Upload Windows Inno installer
-      if: contains(matrix.runner, 'windows')
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ matrix.target }} Inno installer
-        path: |
-          ./build/windows/x64/runner/windows_installer.exe
-        if-no-files-found: error
+    # - name: Upload Windows Inno installer
+    #   if: contains(matrix.runner, 'windows')
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: ${{ matrix.target }} Inno installer
+    #     path: |
+    #       ./build/windows/x64/runner/windows_installer.exe
+    #     if-no-files-found: error
 
       # Linux
     - name: Upload Linux artifacts (archive)
@@ -153,14 +154,14 @@ jobs:
     #     path: ./*.snap
     #     if-no-files-found: error
 
-    # MacOS
-    - name: Upload MacOS artifacts (archive)
-      if: contains(matrix.runner, 'mac')
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ matrix.target }}
-        path: ./build/macos/Build/Products/Release/result.zip
-        if-no-files-found: error
+    # # MacOS
+    # - name: Upload MacOS artifacts (archive)
+    #   if: contains(matrix.runner, 'mac')
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: ${{ matrix.target }}
+    #     path: ./build/macos/Build/Products/Release/result.zip
+    #     if-no-files-found: error
 
   release:
     name: Create Release
@@ -178,30 +179,30 @@ jobs:
           ls artifacts 
           ls -R artifacts
 
-      - name: Windows artifacts
-        run: ls artifacts/windows-x64
+      # - name: Windows artifacts
+      #   run: ls artifacts/windows-x64
 
       - name: Linux artifacts
         run: ls artifacts/linux-x64
 
-      - name: MacOS artifacts
-        run: ls artifacts/macos-arm64
+      # - name: MacOS artifacts
+      #   run: ls artifacts/macos-arm64
 
       - name: Zip and rename artifacts
         run: |
           cd artifacts/
           zip -r ./linux-x64.zip ./linux-x64
-          zip -r ./windows-x64.zip ./windows-x64
-          zip -r ./macos-arm64.zip ./macos-arm64
-          mv "windows-x64 Inno installer/windows_installer.exe" ./windows-x64/windows-x64\ Inno\ installer.exe
+          # zip -r ./windows-x64.zip ./windows-x64
+          # zip -r ./macos-arm64.zip ./macos-arm64
+          # mv "windows-x64 Inno installer/windows_installer.exe" ./windows-x64/windows-x64\ Inno\ installer.exe
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            artifacts/windows-x64/desktop_adb_file_browser.msix
-            artifacts/windows-x64/windows-x64 Inno installer.exe
-            artifacts/windows-x64.zip
+            # artifacts/windows-x64/desktop_adb_file_browser.msix
+            # artifacts/windows-x64/windows-x64 Inno installer.exe
+            # artifacts/windows-x64.zip
             artifacts/linux-x64.zip
-            artifacts/macos-arm64.zip
+            # artifacts/macos-arm64.zip
           fail_on_unmatched_files: true
